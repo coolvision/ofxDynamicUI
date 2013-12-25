@@ -19,6 +19,7 @@
 #define MSGPACK_TYPE_NIL_HPP__
 
 #include "msgpack/object.hpp"
+#undef nil
 
 namespace msgpack {
 
