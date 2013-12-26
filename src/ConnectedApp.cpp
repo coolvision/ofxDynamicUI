@@ -24,9 +24,6 @@ void ConnectedApp::initConnection(string name_in) {
 
     int rc;
 
-    responder = zmq_socket(context, ZMQ_REP);
-    rc = zmq_bind(responder, "ipc:///tmp/0");
-
     name_client = zmq_socket(context, ZMQ_REQ);
     rc = zmq_connect(name_client, "ipc:///tmp/name");
 
@@ -34,49 +31,47 @@ void ConnectedApp::initConnection(string name_in) {
     Message m("name");
     m.send(name_client);
 
-    // get a name reply
-    zmq_msg_t msg;
-    zmq_msg_init(&msg);
-    if (zmq_msg_recv(&msg, name_client, 0) == -1) {
+    cout << "ConnectedApp: send name request " << endl << flush;
+
+    // poll for a few seconds
+    zmq_pollitem_t items [] = {
+        { name_client,  0, ZMQ_POLLIN, 0 }
+    };
+    zmq_poll(items, 1, 2 * 1000);
+
+    if (items[0].revents & ZMQ_POLLIN) {
+
+        // use the received name
+        zmq_msg_t msg;
+        zmq_msg_init(&msg);
+        int r = zmq_msg_recv(&msg, name_client, 0);
+
+        cout << "ConnectedApp: got name reply " << r << endl << flush;
+        Message in_m(&msg);
+        messages.push_back(in_m.message_string);
+        zmq_msg_close(&msg);
+
+        cout << "got name " << in_m.name << endl;
+        this->name = in_m.name;
+
+        address.str = "ipc:///tmp/" + name;
+        server = zmq_socket(context, ZMQ_REP);
+        rc = zmq_bind(server, address.str.c_str());
+
+    } else {
+
+        // if did not get a reply, use the tcp socket
+        address.str = "tcp://*:" + ofToString(port_number);
+        server = zmq_socket(context, ZMQ_REP);
+        rc = zmq_bind(server, address.str.c_str());
+
+        cout << "ConnectedApp: no name reply" << endl << flush;
 
     }
-    cout << "got name" << endl;
-    Message in_m(&msg);
-    messages.push_back(in_m.message_string);
-    zmq_msg_close(&msg);
 
-    this->name = name_in + in_m.name;
-
-    address.str = "ipc:///tmp/" + name;
-    server = zmq_socket(context, ZMQ_REP);
-    rc = zmq_bind(server, address.str.c_str());
 }
 
 void ConnectedApp::processMessages() {
-
-    // server update
-    zmq_msg_t msg;
-    zmq_msg_init(&msg);
-
-    if (zmq_msg_recv(&msg, responder, ZMQ_DONTWAIT) != -1) {
-
-        cout << "got message" << endl;
-
-        Message in_m(&msg);
-        messages.push_back(in_m.message_string);
-
-        // send a reply message
-        // make a message object
-        Message m_out;
-        m_out.addValue("Reply");
-        m_out.addValue("message");
-        m_out.send(responder);
-        m_out.clear();
-    }
-    zmq_msg_close(&msg);
-
-    // btw if there are no ping messages for too long,
-    // should probably exit
 
     zmq_msg_t in_msg;
     zmq_msg_init(&in_msg);

@@ -36,8 +36,7 @@ public:
     bool sendMessage();
 
     static void *context;
-    void *responder;
-
+    
     void *name_client; // for getting a communication socket name
 
     void *server;

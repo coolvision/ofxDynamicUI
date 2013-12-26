@@ -41,20 +41,24 @@ Message::Message(zmq_msg_t *msg) {
     }
     message_string = name + " - ";
 
+    cout << "0got message " << message_string << endl << flush;
+
     // get the type
-    cout << "decode type " << endl;
+    //cout << "decode type " << endl;
     if (pac.next(&result)) {
         result.get().convert(&type);
-        cout << "success " << type << endl;
+        //cout << "success " << type << endl;
     } else {
-        cout << "fail " << endl;
+        //cout << "fail " << endl;
         return;
     }
-    message_string += type;
+    message_string += ofToString(type);
     message_string += " - ";
 
+    cout << "1got message " << message_string << endl << flush;
+
     // depending on the type, convert the array
-    cout << "decode array " << endl;
+    //cout << "decode array " << endl;
     if (pac.next(&result)) {
 
         switch (type) {
@@ -64,7 +68,7 @@ Message::Message(zmq_msg_t *msg) {
                 message_string += string_v[i];
                 message_string += " : ";
             }
-            cout << "success " << type << message_string << endl;
+            //cout << "success " << type << message_string << endl;
             break;
         case INT:
             result.get().convert(&int_v);
@@ -72,7 +76,7 @@ Message::Message(zmq_msg_t *msg) {
                 message_string += int_v[i];
                 message_string += " : ";
             }
-            cout << "success " << type << message_string << endl;
+            //cout << "success " << type << message_string << endl;
             break;
         case FLOAT:
             result.get().convert(&float_v);
@@ -80,16 +84,16 @@ Message::Message(zmq_msg_t *msg) {
                 message_string += float_v[i];
                 message_string += " : ";
             }
-            cout << "success " << type << message_string << endl;
+            //cout << "success " << type << message_string << endl;
             break;
         };
         
     } else {
 
-        cout << "fail " << endl;
-
-        return;
+        //cout << "fail " << endl;
     }
+
+    cout << "2got message " << message_string << endl << flush;
 }
 
 void Message::addValue(string v) {
@@ -153,13 +157,14 @@ void Message::send(void* socket) {
         break;
     };
 
-    cout << "send message " << name << " " << type << endl;
-
     zmq_msg_t msg;
     zmq_msg_init_size(&msg, buffer.size());
     memcpy(zmq_msg_data(&msg), buffer.data(), buffer.size());
 
-    zmq_msg_send(&msg, socket, ZMQ_NOBLOCK);
+    int r = zmq_msg_send(&msg, socket, 0);
+
+    cout << "send message " << name << " " << type << " ret: " << r << " err: " << zmq_strerror(errno) << endl << flush;
+
     zmq_msg_close(&msg);
 
     delete packer;
